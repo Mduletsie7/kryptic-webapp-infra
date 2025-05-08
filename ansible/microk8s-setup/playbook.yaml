@@ -1,0 +1,43 @@
+name: Install and configure MicroK8s
+hosts: ubuntu
+become: yes
+tasks:
+
+  - name: Install snapd (if not present)
+    apt:
+      name: snapd
+      state: present
+      update_cache: yes
+
+  - name: Install MicroK8s
+    snap: 
+      name: microk8s
+      classic: yes
+      state: present
+
+  - name: Add user to MicroK8s group
+    user:
+      name: "{{ ansible_user }}"
+      groups: microk8s
+      append: yes
+
+  - name: Change ownership of .kube directory
+    file: 
+      path: /home/{{ ansible_user }}/.kube
+      state: directory
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      recurse: yes
+    ignore_errors: yes
+
+  - name: Enable MicroK8s addons
+    command: microk8s enable dns storage
+    environment:
+      PATH: "/snap/bin:: {{ ansible_env.PATH }}"
+    register: addon_result
+    changed_when: "'already enabled' not in addon_result.stdout"
+
+  - name: Wait for MicroK8s to be ready
+    shell: microk8s status --wait-ready
+    environment:
+      PATH: "/snap/bin:{{ ansible_env.PATH }}"
