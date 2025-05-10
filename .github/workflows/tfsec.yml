@@ -1,38 +1,31 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
 name: tfsec
 
 on:
   push:
     branches: [ "develop" ]
   pull_request:
-    branches: [ "develop" ]
+    paths:
+      - '**/*.tf'
   schedule:
     - cron: '29 13 * * 1'
 
 jobs:
   tfsec:
-    name: Run tfsec sarif report
+    name: Run tfsec
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
 
     steps:
-      - name: Clone repo
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Run tfsec
-        uses: aquasecurity/tfsec-sarif-action@21ded20e8ca120cd9d3d6ab04ef746477542a608
-        with:
-          sarif_file: tfsec.sarif
+      - name: Install tfsec
+        run: |
+          curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
 
-      - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Run tfsec with SARIF output
+        run: tfsec . --format sarif --out results.sarif --soft-fail=false
+
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@v2
         with:
-          # Path to SARIF file relative to the root of the repository
-          sarif_file: tfsec.sarif
+          sarif_file: results.sarif
